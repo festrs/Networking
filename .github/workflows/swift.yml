@@ -8,14 +8,13 @@ on:
 
 jobs:
   build:
-
     runs-on: macos-latest
-
+    strategy:
+        matrix:
+          destination: ['name=iPhone 11']
     steps:
     - uses: actions/checkout@v2
-    - name: Fetch
-      run:  swift package resolve
     - name: Build
-      run: swift build --build-tests
+      run: xcodebuild build -sdk iphoneos -scheme 'Networking-Package'
     - name: Run tests
-      run: swift test --parallel
+      run: xcodebuild test -destination "${destination}" -scheme 'Networking-Package'
