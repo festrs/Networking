@@ -15,4 +15,4 @@ jobs:
     - name: Build
       run: xcodebuild build -sdk iphoneos -scheme 'Networking-Package'
     - name: Run tests
-      run: xcodebuild test -destination 'platform=Simulator,name=iPhone 11' -scheme 'Networking-Package'
+      run: xcodebuild test -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.6' -scheme 'Networking-Package'
