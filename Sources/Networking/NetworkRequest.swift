@@ -10,8 +10,8 @@ import Foundation
 
 // MARK: Request
 
-public struct Request {
-  public let endpoint: Endpoint
+public struct NetworkRequest {
+  public let endpoint: NetworkEndpoint
   public let method: Method
   public let headers: [String : String]
   public let bodyParameters: [String : Any]
@@ -25,7 +25,7 @@ public struct Request {
     case delete = "DELETE"
   }
 
-  public init(endpoint: Endpoint,
+  public init(endpoint: NetworkEndpoint,
               method: Method = .get,
               headers: [String: String] = ["application/json" : "Content-Type"],
               bodyParameters: [String : Any] = [:],
@@ -38,16 +38,15 @@ public struct Request {
   }
 }
 
-extension Request {
-  var urlRequest: URLRequest? {
-    guard let url = endpoint.url else { return nil }
+extension NetworkRequest {
+  func mountURLRequest(host: String) -> URLRequest? {
+    guard let url = endpoint.mountURL(host: host) else { return nil }
 
     var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
 
     request.httpMethod = method.rawValue
 
-    if !bodyParameters.isEmpty,
-      let httpBody = try? JSONSerialization.data(withJSONObject: bodyParameters, options: []) {
+    if let httpBody = try? JSONSerialization.data(withJSONObject: bodyParameters, options: []) {
       request.httpBody = httpBody
     }
 
@@ -56,32 +55,5 @@ extension Request {
     }
 
     return request
-  }
-}
-
-// MARK: Endpoint
-
-public struct Endpoint {
-  var baseUrl: URL
-  let path: String
-  let queryItems: [URLQueryItem] = []
-
-  public init(path: String) {
-    baseUrl = URL(fileURLWithPath: "")
-    self.path = path
-  }
-}
-
-extension Endpoint {
-  var url: URL? {
-    guard var components = URLComponents(url: baseUrl,
-                                         resolvingAgainstBaseURL: true) else {
-                                          preconditionFailure("Cannot load baseUrl: \(baseUrl)")
-    }
-
-    components.path = path
-    components.queryItems = queryItems
-
-    return components.url
   }
 }

@@ -11,54 +11,43 @@ import Combine
 // MARK: - Error
 
 public enum NetworkError: Error {
-  case error(statusCode: Int, data: Data?)
   case notConnected
   case cancelled
   case generic(Error)
   case parse(Error?)
-  case urlGeneration
-}
-
-// MARK: - Engine
-
-public protocol NetworkEngine {
-  func engineDataTaskPublisher(for request: URLRequest) -> URLSession.DataTaskPublisher
-}
-
-extension URLSession: NetworkEngine {
-  public func engineDataTaskPublisher(for request: URLRequest) -> URLSession.DataTaskPublisher {
-    dataTaskPublisher(for: request)
-  }
 }
 
 // MARK: - Requestable
 
 public protocol NetworkRequestable: AnyObject {
-  func request<T>(_ request: Request) -> AnyPublisher<T, NetworkError> where T: Decodable
+  func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable
 }
 
 // MARK: - Service
 
 public class NetworkService {
-  private let engine: NetworkEngine
+  private let urlSession: URLSession
   private let decoder = JSONDecoder()
+  private let host: String
 
-  public init(engine: NetworkEngine = URLSession.shared) {
-    self.engine = engine
+  public init(host: String,
+              urlSession: URLSession = URLSession.shared) {
+    self.host = host
+    self.urlSession = urlSession
   }
 }
 
 extension NetworkService: NetworkRequestable {
-  public func request<T>(_ request: Request) -> AnyPublisher<T, NetworkError> where T: Decodable {
-    guard let urlRequest = request.urlRequest else {
-      preconditionFailure("urlRequest malformed : \(String(describing: request.urlRequest))")
+  public func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable {
+    guard let urlRequest = request.mountURLRequest(host: host) else {
+      preconditionFailure("urlRequest malformed : \(String(describing: request))")
     }
 
     if let dateDecodingStrategy = request.dateDecodeStrategy {
       decoder.dateDecodingStrategy = dateDecodingStrategy
     }
 
-    return engine.engineDataTaskPublisher(for: urlRequest)
+    return urlSession.dataTaskPublisher(for: urlRequest)
       .mapError { urlError -> NetworkError in
         switch urlError.code {
           case .notConnectedToInternet: return .notConnected
@@ -66,12 +55,16 @@ extension NetworkService: NetworkRequestable {
           default: return .generic(urlError)
         }
       }
-    .map(\.data)
-    .decode(type: T.self, decoder: decoder)
-    .mapError { error -> NetworkError in
-      .parse(error)
-    }
-    .receive(on: DispatchQueue.main)
-    .eraseToAnyPublisher()
+      .map(\.data)
+      .decode(type: T.self, decoder: decoder)
+      .mapError { error -> NetworkError in
+        if let error = error as? NetworkError {
+          return error
+        } else {
+          return .parse(error)
+        }
+      }
+      .receive(on: DispatchQueue.main)
+      .eraseToAnyPublisher()
   }
 }
