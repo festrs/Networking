@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
-          destination: ['platform=iOS Simulator,name=iPhone 8', 'platform=iOS Simulator,name=iPhone 11']
+          destination: ['platform=iOS Simulator,OS=13.1,name=iPhone 8', 'platform=iOS Simulator,OS=13.1,name=iPhone 9']
     steps:
     - uses: actions/checkout@v2
     - name: Build
@@ -19,4 +19,4 @@ jobs:
     - name: Run tests
       run: xcodebuild test -destination "${destination}" -scheme 'Networking-Package'
       env:
-        destination: $
+        destination: ${{ matrix.destination }}
