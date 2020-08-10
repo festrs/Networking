@@ -9,7 +9,7 @@ let package = Package(
     products: [
         .library(
             name: "Networking",
-            targets: ["Networking"]),
+            targets: ["Networking"])
     ],
     targets: [
         .target(
@@ -17,6 +17,6 @@ let package = Package(
             dependencies: []),
         .testTarget(
             name: "NetworkingTests",
-            dependencies: ["Networking"]),
+            dependencies: ["Networking"])
     ]
 )

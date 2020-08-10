@@ -13,8 +13,8 @@ import Foundation
 public struct NetworkRequest {
   public let endpoint: NetworkEndpoint
   public let method: Method
-  public let headers: [String : String]
-  public let bodyParameters: [String : Any]
+  public let headers: [String: String]
+  public let bodyParameters: [String: Any]
   public let dateDecodeStrategy: JSONDecoder.DateDecodingStrategy?
 
   public enum Method: String {
@@ -27,8 +27,8 @@ public struct NetworkRequest {
 
   public init(endpoint: NetworkEndpoint,
               method: Method = .get,
-              headers: [String: String] = ["application/json" : "Content-Type"],
-              bodyParameters: [String : Any] = [:],
+              headers: [String: String] = ["application/json": "Content-Type"],
+              bodyParameters: [String: Any] = [:],
               dateDecodeStrategy: JSONDecoder.DateDecodingStrategy? = nil) {
     self.endpoint = endpoint
     self.method = method

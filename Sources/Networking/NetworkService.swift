@@ -50,9 +50,9 @@ extension NetworkService: NetworkRequestable {
     return urlSession.dataTaskPublisher(for: urlRequest)
       .mapError { urlError -> NetworkError in
         switch urlError.code {
-          case .notConnectedToInternet: return .notConnected
-          case .cancelled: return .cancelled
-          default: return .generic(urlError)
+        case .notConnectedToInternet: return .notConnected
+        case .cancelled: return .cancelled
+        default: return .generic(urlError)
         }
       }
       .map(\.data)

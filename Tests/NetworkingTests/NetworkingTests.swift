@@ -57,16 +57,16 @@ final class NetworkingTests: XCTestCase {
     let url = request.mountURLRequest(host: "felipe.com")!.url
     let resultData = try? JSONSerialization.data(withJSONObject: ["title": "felipe"], options: [])
 
-    URLProtocolMock.testURLs = [url : resultData!]
+    URLProtocolMock.testURLs = [url: resultData!]
 
     let exp = XCTestExpectation(description: "Completion")
 
     networking.request(request).sink(receiveCompletion: { completion in
       switch completion {
-        case .failure(let error):
-          XCTFail("Error \(error.localizedDescription)")
-        case .finished:
-          break
+      case .failure(let error):
+        XCTFail("Error \(error.localizedDescription)")
+      case .finished:
+        break
       }
       exp.fulfill()
     }, receiveValue: { (mock: MockResponse) in
