@@ -20,7 +20,10 @@ public enum NetworkError: Error {
 // MARK: - Requestable
 
 public protocol NetworkRequestable: AnyObject {
+  @available(iOS 13.0, *)
   func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable
+  func requestObject<T: Decodable>(_ request: NetworkRequest,
+                                   completion: @escaping (Result<T, NetworkError>) -> Void) -> URLSessionDataTask?
 }
 
 // MARK: - Service
@@ -38,6 +41,42 @@ public class NetworkService {
 }
 
 extension NetworkService: NetworkRequestable {
+  public func requestObject<T: Decodable>(_ request: NetworkRequest,
+                                          completion: @escaping (Result<T, NetworkError>) -> Void) -> URLSessionDataTask? {
+
+    guard let urlRequest = request.mountURLRequest(host: host) else {
+      preconditionFailure("urlRequest malformed : \(String(describing: request))")
+    }
+    let task = urlSession.dataTask(with: urlRequest) { (data, _, error) in
+      if let error = error {
+        if let urlError = error as? URLError {
+          switch urlError.code {
+          case .notConnectedToInternet: return completion(.failure(.notConnected))
+          case .cancelled: return completion(.failure(.cancelled))
+          default: return completion(.failure(.generic(urlError)))
+          }
+        } else {
+          completion(.failure(.generic(error)))
+        }
+      } else if let data = data {
+        do {
+          if let dateDecodingStrategy = request.dateDecodeStrategy {
+            self.decoder.dateDecodingStrategy = dateDecodingStrategy
+          }
+          let object = try self.decoder.decode(T.self, from: data)
+          completion(.success(object))
+        } catch {
+          completion(.failure(.parse(error)))
+        }
+      } else {
+        completion(.failure(.parse(nil)))
+      }
+    }
+    task.resume()
+    return task
+  }
+
+  @available(iOS 13.0, *)
   public func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable {
     guard let urlRequest = request.mountURLRequest(host: host) else {
       preconditionFailure("urlRequest malformed : \(String(describing: request))")
@@ -54,17 +93,17 @@ extension NetworkService: NetworkRequestable {
         case .cancelled: return .cancelled
         default: return .generic(urlError)
         }
+    }
+    .map(\.data)
+    .decode(type: T.self, decoder: decoder)
+    .mapError { error -> NetworkError in
+      if let error = error as? NetworkError {
+        return error
+      } else {
+        return .parse(error)
       }
-      .map(\.data)
-      .decode(type: T.self, decoder: decoder)
-      .mapError { error -> NetworkError in
-        if let error = error as? NetworkError {
-          return error
-        } else {
-          return .parse(error)
-        }
-      }
-      .receive(on: DispatchQueue.main)
-      .eraseToAnyPublisher()
+    }
+    .receive(on: DispatchQueue.main)
+    .eraseToAnyPublisher()
   }
 }

@@ -16,6 +16,9 @@ public struct NetworkRequest {
   public let headers: [String: String]
   public let bodyParameters: [String: Any]
   public let dateDecodeStrategy: JSONDecoder.DateDecodingStrategy?
+  private var shouldAddBodyToRequest: Bool {
+    return method == .post || method == .put
+  }
 
   public enum Method: String {
     case post = "POST"
@@ -38,7 +41,7 @@ public struct NetworkRequest {
   }
 }
 
-extension NetworkRequest {
+public extension NetworkRequest {
   func mountURLRequest(host: String) -> URLRequest? {
     guard let url = endpoint.mountURL(host: host) else { return nil }
 
@@ -46,7 +49,9 @@ extension NetworkRequest {
 
     request.httpMethod = method.rawValue
 
-    if let httpBody = try? JSONSerialization.data(withJSONObject: bodyParameters, options: []) {
+
+    if shouldAddBodyToRequest,
+      let httpBody = try? JSONSerialization.data(withJSONObject: bodyParameters, options: []) {
       request.httpBody = httpBody
     }
 

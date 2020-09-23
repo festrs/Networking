@@ -21,41 +21,41 @@ final class NetworkingTests: XCTestCase {
   }
 
   func testEndpointInit() {
-    let url = endpoint.mountURL(host: "felipe.com")
-    let expectedUrl = URL(string: "https://felipe.com/to/endpoint?query=item")
+    let url = endpoint.mountURL(host: "testing.com")
+    let expectedUrl = URL(string: "https://testing.com/to/endpoint?query=item")
 
     XCTAssertEqual(url, expectedUrl, "Enpoint url are not the same")
   }
 
   func testRequestInit() {
-    let body = ["body": "felipe"]
+    let body = ["body": "html body"]
     let request = NetworkRequest(endpoint: endpoint,
-                                 method: .get,
+                                 method: .post,
                                  headers: ["bearer": "authorization"],
                                  bodyParameters: body)
 
-    let url = request.mountURLRequest(host: "felipe.com")
-    XCTAssertEqual(url?.description, "https://felipe.com/to/endpoint?query=item", "URL not matched")
+    let url = request.mountURLRequest(host: "testing.com")
+    XCTAssertEqual(url?.description, "https://testing.com/to/endpoint?query=item", "URL not matched")
 
     XCTAssertEqual(url?.allHTTPHeaderFields, ["Authorization": "bearer"], "Header not matched")
 
     let data = try? JSONSerialization.data(withJSONObject: body, options: [])
     XCTAssertEqual(url?.httpBody, data, "Body data not matched")
 
-    XCTAssertEqual(url?.httpMethod, "GET", "Method not matched")
+    XCTAssertEqual(url?.httpMethod, "POST", "Method not matched")
   }
 
   func testNetworkingSuccesRequest() {
-    let networking = NetworkService(host: "felipe.com",
+    let networking = NetworkService(host: "testing.com",
                                     urlSession: sessionMock)
 
     let request = NetworkRequest(endpoint: endpoint,
                                  method: .get,
                                  headers: ["bearer": "authorization"],
-                                 bodyParameters: ["body": "felipe"])
+                                 bodyParameters: ["body": "html body"])
 
-    let url = request.mountURLRequest(host: "felipe.com")!.url
-    let resultData = try? JSONSerialization.data(withJSONObject: ["title": "felipe"], options: [])
+    let url = request.mountURLRequest(host: "testing.com")!.url
+    let resultData = try? JSONSerialization.data(withJSONObject: ["title": "html body"], options: [])
 
     URLProtocolMock.testURLs = [url: resultData!]
 
@@ -70,15 +70,9 @@ final class NetworkingTests: XCTestCase {
       }
       exp.fulfill()
     }, receiveValue: { (mock: MockResponse) in
-      XCTAssertEqual(mock, MockResponse(title: "felipe" ), "Object mock not equal")
+      XCTAssertEqual(mock, MockResponse(title: "html body" ), "Object mock not equal")
     }).store(in: &subscriptions)
 
     wait(for: [exp], timeout: 1)
   }
-
-  static var allTests = [
-    ("testEndpoint", testEndpointInit),
-    ("testRequest", testRequestInit),
-    ("testNetworkingSuccesRequest", testNetworkingSuccesRequest)
-  ]
 }
