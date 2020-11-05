@@ -21,9 +21,6 @@ let package = Package(
       dependencies: ["Mocker"]),
     .testTarget(
       name: "NetworkingTests",
-      dependencies: ["Networking", "Mocker"],
-      resources: [
-        .copy("Resources/example.json")
-      ]),
+      dependencies: ["Networking", "Mocker"]),
   ]
 )

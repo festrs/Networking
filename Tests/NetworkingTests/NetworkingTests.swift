@@ -4,17 +4,6 @@ import Combine
 import Mocker
 @testable import Networking
 
-public final class MockedData {
-  public static var bundle = Bundle.module
-  public static let exampleJSON: URL = bundle.url(forResource: "example", withExtension: "json")!
-}
-
-internal extension URL {
-  var data: Data {
-    return try! Data(contentsOf: self)
-  }
-}
-
 final class NetworkingTests: XCTestCase {
   struct MockResponse: Decodable, Equatable {
     var title: String
@@ -22,10 +11,11 @@ final class NetworkingTests: XCTestCase {
 
   func testRequestObjectResponseSuccess() throws {
     let originalURL = URL(string: "https://testing.com/object/response/success")!
+    let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker"], options: .fragmentsAllowed)
     let mock = Mock(url: originalURL,
                     dataType: .json,
                     statusCode: 200,
-                    data: [.get: MockedData.exampleJSON.data])
+                    data: [.get: data])
     mock.register()
 
     let networking: NetworkRequestable = NetworkService(host: "testing.com")
