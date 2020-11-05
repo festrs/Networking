@@ -9,6 +9,12 @@ final class NetworkingTests: XCTestCase {
     var title: String
   }
 
+  var sut: NetworkRequestable!
+
+  override func setUpWithError() throws {
+    sut = NetworkService(host: "testing.com")
+  }
+
   func testRequestObjectResponseSuccess() throws {
     let originalURL = URL(string: "https://testing.com/object/response/success")!
     let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker"], options: .fragmentsAllowed)
@@ -18,10 +24,9 @@ final class NetworkingTests: XCTestCase {
                     data: [.get: data])
     mock.register()
 
-    let networking: NetworkRequestable = NetworkService(host: "testing.com")
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success")
     let exp = XCTestExpectation(description: #function)
-    networking.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case let .success(object):
         XCTAssertEqual(object.title, "Mocker")
@@ -44,10 +49,9 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/failure")
-    let networking: NetworkRequestable = NetworkService(host: "testing.com")
 
     let exp = XCTestExpectation(description: #function)
-    networking.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -60,8 +64,8 @@ final class NetworkingTests: XCTestCase {
   }
 
   func testRequestObjectResponseDataEmptyFailure() {
-    let originalURL = URL(string: "https://testing.com/to/endpoint")!
-    let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/endpoint")
+    let originalURL = URL(string: "https://testing.com/to/dataempty")!
+    let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/dataempty")
     let mock = Mock(url: originalURL,
                     dataType: .json,
                     statusCode: 200,
@@ -69,10 +73,8 @@ final class NetworkingTests: XCTestCase {
 
     mock.register()
 
-    let networking = NetworkService(host: "testing.com")
-
     let exp = XCTestExpectation(description: #function)
-    networking.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -94,10 +96,8 @@ final class NetworkingTests: XCTestCase {
 
     mock.register()
 
-    let networking = NetworkService(host: "testing.com")
-
     let exp = XCTestExpectation(description: #function)
-    networking.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -107,6 +107,16 @@ final class NetworkingTests: XCTestCase {
       exp.fulfill()
     }
     wait(for: [exp], timeout: 2)
+  }
+
+  func testRequestWithDateDecodingStrategy() {
+    let yyyyMMdd: DateFormatter = DateFormatter()
+    yyyyMMdd.dateFormat = "yyyy-MM-dd"
+    decoder.dateDecodingStrategy = .formatted(yyyyMMdd)
+
+    //    if let dateDecodingStrategy = request.dateDecodeStrategy {
+    //      decoder.dateDecodingStrategy = dateDecodingStrategy
+    //    }
   }
 
   static var allTests = [

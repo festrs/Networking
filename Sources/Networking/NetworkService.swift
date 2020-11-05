@@ -53,8 +53,8 @@ public protocol NetworkRequestable: AnyObject {
 // MARK: - Service
 
 public class NetworkService {
-  private let urlSession: URLSession
   public private(set) var decoder = JSONDecoder()
+  private let urlSession: URLSession
   private let host: String
   private var acceptedStatusCodes: [Int] = Array(200..<300)
 
