@@ -1,22 +1,31 @@
+//
+//  NetworkingPublisherTests.swift
+//  
+//
+//  Created by Felipe Dias Pereira on 06/11/20.
+//
 //  swiftlint:disable force_try
 import XCTest
 import Combine
 import Mocker
 @testable import Networking
 
-final class NetworkingTests: XCTestCase {
+@available(iOS 13.0, *)
+final class NetworkingPublisherTests: XCTestCase {
   struct MockResponse: Decodable, Equatable {
     var title: String
     var date: Date?
   }
 
   var sut: NetworkRequestable!
+  var disposables: Set<AnyCancellable>!
 
   override func setUpWithError() throws {
     sut = NetworkService(host: "testing.com")
+    disposables = Set()
   }
 
-  func testRequestObjectResponseGetSuccess() throws {
+  func testPublisherResponseGetSuccess() {
     let originalURL = URL(string: "https://testing.com/object/response/success")!
     let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker"], options: .fragmentsAllowed)
     let mock = Mock(url: originalURL,
@@ -27,19 +36,19 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success")
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case let .success(object):
-        XCTAssertEqual(object.title, "Mocker")
-      case let .failure(error):
-        XCTFail(error.localizedDescription)
+    sut.publisher(for: endpoint, using: ()).sink { completion in
+      if case .failure(let error) = completion {
+        XCTFail("Failed \(error.localizedDescription)")
       }
       exp.fulfill()
+    } receiveValue: { (value: MockResponse) in
+      XCTAssertEqual(value.title, "Mocker")
     }
+    .store(in: &disposables)
     wait(for: [exp], timeout: 2)
   }
 
-  func testRequestObjectResponsePostSuccess() throws {
+  func testPublisherResponsePostSuccess() {
     let originalURL = URL(string: "https://testing.com/object/response/success")!
     let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker"], options: .fragmentsAllowed)
     let mock = Mock(url: originalURL,
@@ -50,19 +59,19 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success", method: .post)
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case let .success(object):
-        XCTAssertEqual(object.title, "Mocker")
-      case let .failure(error):
-        XCTFail(error.localizedDescription)
+    sut.publisher(for: endpoint, using: ()).sink { completion in
+      if case .failure(let error) = completion {
+        XCTFail("Failed \(error.localizedDescription)")
       }
       exp.fulfill()
+    } receiveValue: { (value: MockResponse) in
+      XCTAssertEqual(value.title, "Mocker")
     }
+    .store(in: &disposables)
     wait(for: [exp], timeout: 2)
   }
 
-  func testRequestObjectReponseFailure() {
+  func testPublisherNotConnectedToInternetFailure() {
     let originalURL = URL(string: "https://testing.com/to/failure")!
     let mock = Mock(url: originalURL,
                     dataType: .json,
@@ -75,19 +84,21 @@ final class NetworkingTests: XCTestCase {
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/failure")
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case .success:
+    sut.publisher(for: endpoint, using: ())
+      .sink { completion in
+        if case .failure(let error) = completion {
+          XCTAssertEqual(error, NetworkError.notConnectedToInternet)
+        }
+        exp.fulfill()
+      } receiveValue: { (value: MockResponse) in
         XCTFail("Should return error")
-      case let .failure(error):
-        XCTAssertEqual(error, NetworkError.notConnectedToInternet)
       }
-      exp.fulfill()
-    }
+      .store(in: &disposables)
+
     wait(for: [exp], timeout: 2)
   }
 
-  func testRequestObjectResponseDataEmptyFailure() {
+  func testPublisherObjectResponseDataEmptyFailure() {
     let originalURL = URL(string: "https://testing.com/to/dataempty")!
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/dataempty")
     let mock = Mock(url: originalURL,
@@ -98,19 +109,20 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case .success:
+    sut.publisher(for: endpoint, using: ())
+      .sink { completion in
+        if case .failure(let error) = completion {
+          XCTAssertEqual(error, NetworkError.parse(nil))
+        }
+        exp.fulfill()
+      } receiveValue: { (value: MockResponse) in
         XCTFail("Should return error")
-      case let .failure(error):
-        XCTAssertEqual(error, NetworkError.parse(nil))
       }
-      exp.fulfill()
-    }
+      .store(in: &disposables)
     wait(for: [exp], timeout: 2)
   }
 
-  func testRequestObjectResponseUnauthorizedFailure() {
+  func testPublisherObjectResponseUnauthorizedFailure() {
     let originalURL = URL(string: "https://testing.com/to/unauthorized")!
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/unauthorized")
     let mock = Mock(url: originalURL,
@@ -121,19 +133,21 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case .success:
+    sut.publisher(for: endpoint, using: ())
+      .sink { completion in
+        if case .failure(let error) = completion {
+          XCTAssertEqual(error, NetworkError.serverSideError(HTTPStatusCode.unauthorized))
+        }
+        exp.fulfill()
+      } receiveValue: { (value: MockResponse) in
         XCTFail("Should return error")
-      case let .failure(error):
-        XCTAssertEqual(error, NetworkError.serverSideError(HTTPStatusCode.unauthorized))
       }
-      exp.fulfill()
-    }
+      .store(in: &disposables)
+
     wait(for: [exp], timeout: 2)
   }
 
-  func testRequestObjectResponseEndpointFailure() {
+  func testPublisherObjectResponseEndpointFailure() {
     let originalURL = URL(string: "https://testing.com/to/unauthorized")!
     let endpoint = Endpoint<EndpointKinds.Public>(path: "unauthorized")
     let mock = Mock(url: originalURL,
@@ -144,15 +158,16 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case .success:
+    sut.publisher(for: endpoint, using: ())
+      .sink { completion in
+        if case .failure(let error) = completion {
+          XCTAssertEqual(error, NetworkError.invalidEndpointError)
+        }
+        exp.fulfill()
+      } receiveValue: { (value: MockResponse) in
         XCTFail("Should return error")
-      case let .failure(error):
-        XCTAssertEqual(error, NetworkError.invalidEndpointError)
       }
-      exp.fulfill()
-    }
+      .store(in: &disposables)
     wait(for: [exp], timeout: 2)
   }
 
@@ -172,25 +187,26 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/date")
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
-      switch result {
-      case let .success(object):
-        XCTAssertEqual(object.date, yyyyMMdd.date(from: "2020-11-05"))
-      case let .failure(error):
-        XCTFail(error.localizedDescription)
+    sut.publisher(for: endpoint, using: ()).sink { completion in
+      if case .failure(let error) = completion {
+        XCTFail("Failed \(error.localizedDescription)")
       }
       exp.fulfill()
+    } receiveValue: { (object: MockResponse) in
+      XCTAssertEqual(object.date, yyyyMMdd.date(from: "2020-11-05"))
     }
+    .store(in: &disposables)
     wait(for: [exp], timeout: 2)
   }
 
   static var allTests = [
-    ("testRequestObjectResponseGetSuccess", testRequestObjectResponseGetSuccess),
-    ("testRequestObjectResponsePostSuccess", testRequestObjectResponsePostSuccess),
-    ("testRequestObjectReponseFailure", testRequestObjectReponseFailure),
-    ("testRequestObjectResponseDataEmptyFailure", testRequestObjectResponseDataEmptyFailure),
-    ("testRequestObjectResponseUnauthorizedFailure", testRequestObjectResponseUnauthorizedFailure),
-    ("testRequestObjectResponseEndpointFailure", testRequestObjectResponseEndpointFailure),
+    ("testPublisherResponseGetSuccess", testPublisherResponseGetSuccess),
+    ("testPublisherResponsePostSuccess", testPublisherResponsePostSuccess),
+    ("testPublisherNotConnectedToInternetFailure", testPublisherNotConnectedToInternetFailure),
+    ("testPublisherObjectResponseDataEmptyFailure", testPublisherObjectResponseDataEmptyFailure),
+    ("testPublisherObjectResponseUnauthorizedFailure", testPublisherObjectResponseUnauthorizedFailure),
+    ("testPublisherObjectResponseEndpointFailure", testPublisherObjectResponseEndpointFailure),
     ("testRequestWithDateDecodingStrategy", testRequestWithDateDecodingStrategy),
   ]
 }
+

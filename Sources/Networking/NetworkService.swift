@@ -38,10 +38,18 @@ public enum NetworkError: Error, Equatable {
 // MARK: - Requestable
 
 public protocol NetworkRequestable: AnyObject {
-  //  @available(iOS 13.0, *)
-  //  func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable
-  //  func requestObject<T: Decodable>(_ request: NetworkRequest,
-  //                                   completion: @escaping (Result<T, NetworkError>) -> Void) -> URLSessionDataTask?
+  var decoder: JSONDecoder { get }
+
+  @available(iOS 13.0, *)
+  @discardableResult
+  func publisher<K, R: Decodable>(for endpoint: Endpoint<K>,
+                                  using requestData: K.RequestData) -> AnyPublisher<R, NetworkError>
+
+  @discardableResult
+  func dataTask<K>(for endpoint: Endpoint<K>,
+                   using requestData: K.RequestData,
+                   completion: @escaping ((Result<Data, NetworkError>) -> Void)) -> URLSessionDataTask?
+
   @discardableResult
   func request<K, R: Decodable>(for endpoint: Endpoint<K>,
                                 using requestData: K.RequestData,
@@ -78,6 +86,25 @@ extension NetworkService: NetworkRequestable {
   public func request<K, R: Decodable>(for endpoint: Endpoint<K>,
                                        using requestData: K.RequestData,
                                        completion: @escaping (Result<R, NetworkError>) -> Void) -> URLSessionDataTask? {
+    return dataTask(for: endpoint, using: requestData) { (result) in
+      switch result {
+      case let .success(data):
+        do {
+          let object = try self.decoder.decode(R.self, from: data)
+          completion(.success(object))
+        } catch {
+          completion(.failure(.parse(error)))
+        }
+      case let .failure(error):
+        completion(.failure(error))
+      }
+    }
+  }
+
+  @discardableResult
+  public func dataTask<K>(for endpoint: Endpoint<K>,
+                          using requestData: K.RequestData,
+                          completion: @escaping ((Result<Data, NetworkError>) -> Void)) -> URLSessionDataTask? {
     guard let request = endpoint.makeRequest(host: host, with: requestData) else {
       completion(.failure(.invalidEndpointError))
       return nil
@@ -102,12 +129,7 @@ extension NetworkService: NetworkRequestable {
         }
 
         if let data = data {
-          do {
-            let object = try self.decoder.decode(R.self, from: data)
-            completion(.success(object))
-          } catch {
-            completion(.failure(.parse(error)))
-          }
+          completion(.success(data))
         } else {
           completion(.failure(.emptyData))
         }
@@ -119,68 +141,37 @@ extension NetworkService: NetworkRequestable {
     return task
   }
 
-  //  @available(iOS 13.0, *)
-  //  public func request<T>(_ request: NetworkRequest) -> AnyPublisher<T, NetworkError> where T: Decodable {
-  //    guard let urlRequest = request.mountURLRequest(host: host) else {
-  //      preconditionFailure("urlRequest malformed : \(String(describing: request))")
-  //    }
-  //
-  //    if let dateDecodingStrategy = request.dateDecodeStrategy {
-  //      decoder.dateDecodingStrategy = dateDecodingStrategy
-  //    }
-  //
-  //    return urlSession.dataTaskPublisher(for: urlRequest)
-  //      .mapError { urlError -> NetworkError in
-  //        switch urlError.code {
-  //        case .notConnectedToInternet: return .notConnected
-  //        case .cancelled: return .cancelled
-  //        default: return .generic(urlError)
-  //        }
-  //    }
-  //    .map(\.data)
-  //    .decode(type: T.self, decoder: decoder)
-  //    .mapError { error -> NetworkError in
-  //      if let error = error as? NetworkError {
-  //        return error
-  //      } else {
-  //        return .parse(error)
-  //      }
-  //    }
-  //    .receive(on: DispatchQueue.main)
-  //    .eraseToAnyPublisher()
-  //  }
+  @available(iOS 13.0, *)
+  public func publisher<K, R: Decodable>(for endpoint: Endpoint<K>,
+                                         using requestData: K.RequestData) -> AnyPublisher<R, NetworkError> {
+    guard let request = endpoint.makeRequest(host: host, with: requestData) else {
+      return Fail(error: NetworkError.invalidEndpointError).eraseToAnyPublisher()
+    }
+    return urlSession.dataTaskPublisher(for: request)
+      .mapError { urlError -> NetworkError in
+        switch urlError.code {
+        case .notConnectedToInternet: return .notConnectedToInternet
+        case .cancelled: return .cancelled
+        default: return .generic(urlError)
+        }
+      }
+      .tryMap { output in
+        if let response = output.response as? HTTPURLResponse,
+           let status = response.status {
+          guard status.responseType == .success else {
+            throw NetworkError.serverSideError(status)
+          }
+        }
+        return output.data
+      }
+      .decode(type: R.self, decoder: decoder)
+      .mapError { error -> NetworkError in
+        if let error = error as? NetworkError {
+          return error
+        } else {
+          return .parse(error)
+        }
+      }
+      .eraseToAnyPublisher()
+  }
 }
-
-//extension URLSession {
-//  func publisher<K, R>(
-//    for endpoint: Endpoint<K>,
-//    using requestData: K.RequestData,
-//    decoder: JSONDecoder = .init()
-//  ) -> AnyPublisher<R, Error> {
-//    guard let request = endpoint.makeRequest(host: "", with: requestData) else {
-//      return Fail(
-//        error: InvalidEndpointError(endpoint: endpoint)
-//      ).eraseToAnyPublisher()
-//    }
-//
-//        return urlSession.dataTaskPublisher(for: request)
-//          .mapError { urlError -> NetworkError in
-//            switch urlError.code {
-//            case .notConnectedToInternet: return .notConnected
-//            case .cancelled: return .cancelled
-//            default: return .generic(urlError)
-//            }
-//        }
-//        .map(\.data)
-//        .decode(type: R.self, decoder: decoder)
-//        .mapError { error -> NetworkError in
-//          if let error = error as? NetworkError {
-//            return error
-//          } else {
-//            return .parse(error)
-//          }
-//        }
-//        .receive(on: DispatchQueue.main)
-//        .eraseToAnyPublisher()
-//  }
-//}
