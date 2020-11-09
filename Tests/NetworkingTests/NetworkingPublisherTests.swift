@@ -36,7 +36,7 @@ final class NetworkingPublisherTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success")
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ()).sink { completion in
+    sut.publisher(for: endpoint, using: (), decoder: .init()).sink { completion in
       if case .failure(let error) = completion {
         XCTFail("Failed \(error.localizedDescription)")
       }
@@ -59,7 +59,7 @@ final class NetworkingPublisherTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success", method: .post)
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ()).sink { completion in
+    sut.publisher(for: endpoint, using: (), decoder: .init()).sink { completion in
       if case .failure(let error) = completion {
         XCTFail("Failed \(error.localizedDescription)")
       }
@@ -84,7 +84,7 @@ final class NetworkingPublisherTests: XCTestCase {
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/failure")
 
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ())
+    sut.publisher(for: endpoint, using: (), decoder: .init())
       .sink { completion in
         if case .failure(let error) = completion {
           XCTAssertEqual(error, NetworkError.notConnectedToInternet)
@@ -109,7 +109,7 @@ final class NetworkingPublisherTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ())
+    sut.publisher(for: endpoint, using: (), decoder: .init())
       .sink { completion in
         if case .failure(let error) = completion {
           XCTAssertEqual(error, NetworkError.parse(nil))
@@ -133,7 +133,7 @@ final class NetworkingPublisherTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ())
+    sut.publisher(for: endpoint, using: (), decoder: .init())
       .sink { completion in
         if case .failure(let error) = completion {
           XCTAssertEqual(error, NetworkError.serverSideError(HTTPStatusCode.unauthorized))
@@ -158,7 +158,7 @@ final class NetworkingPublisherTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ())
+    sut.publisher(for: endpoint, using: (), decoder: .init())
       .sink { completion in
         if case .failure(let error) = completion {
           XCTAssertEqual(error, NetworkError.invalidEndpointError)
@@ -174,7 +174,8 @@ final class NetworkingPublisherTests: XCTestCase {
   func testRequestWithDateDecodingStrategy() {
     let yyyyMMdd: DateFormatter = DateFormatter()
     yyyyMMdd.dateFormat = "yyyy-MM-dd"
-    sut.decoder.dateDecodingStrategy = .formatted(yyyyMMdd)
+    let jsonDecoder = JSONDecoder()
+    jsonDecoder.dateDecodingStrategy = .formatted(yyyyMMdd)
 
     let originalURL = URL(string: "https://testing.com/object/response/date")!
     let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker",
@@ -187,7 +188,7 @@ final class NetworkingPublisherTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/date")
     let exp = XCTestExpectation(description: #function)
-    sut.publisher(for: endpoint, using: ()).sink { completion in
+    sut.publisher(for: endpoint, using: (), decoder: jsonDecoder).sink { completion in
       if case .failure(let error) = completion {
         XCTFail("Failed \(error.localizedDescription)")
       }

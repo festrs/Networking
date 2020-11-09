@@ -27,7 +27,7 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success")
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case let .success(object):
         XCTAssertEqual(object.title, "Mocker")
@@ -50,7 +50,7 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/success", method: .post)
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case let .success(object):
         XCTAssertEqual(object.title, "Mocker")
@@ -75,7 +75,7 @@ final class NetworkingTests: XCTestCase {
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/to/failure")
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -98,7 +98,7 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -121,7 +121,7 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -144,7 +144,7 @@ final class NetworkingTests: XCTestCase {
     mock.register()
 
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: .init()) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case .success:
         XCTFail("Should return error")
@@ -159,7 +159,8 @@ final class NetworkingTests: XCTestCase {
   func testRequestWithDateDecodingStrategy() {
     let yyyyMMdd: DateFormatter = DateFormatter()
     yyyyMMdd.dateFormat = "yyyy-MM-dd"
-    sut.decoder.dateDecodingStrategy = .formatted(yyyyMMdd)
+    let jsonDecoder = JSONDecoder()
+    jsonDecoder.dateDecodingStrategy = .formatted(yyyyMMdd)
 
     let originalURL = URL(string: "https://testing.com/object/response/date")!
     let data = try! JSONSerialization.data(withJSONObject: ["title": "Mocker",
@@ -172,7 +173,7 @@ final class NetworkingTests: XCTestCase {
 
     let endpoint = Endpoint<EndpointKinds.Public>(path: "/object/response/date")
     let exp = XCTestExpectation(description: #function)
-    sut.request(for: endpoint, using: ()) { (result: Result<MockResponse, NetworkError>) in
+    sut.request(for: endpoint, using: (), decoder: jsonDecoder) { (result: Result<MockResponse, NetworkError>) in
       switch result {
       case let .success(object):
         XCTAssertEqual(object.date, yyyyMMdd.date(from: "2020-11-05"))

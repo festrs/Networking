@@ -38,21 +38,22 @@ public enum NetworkError: Error, Equatable {
 // MARK: - Requestable
 
 public protocol NetworkRequestable: AnyObject {
-  var decoder: JSONDecoder { get }
-
   @available(iOS 13.0, *)
   @discardableResult
   func publisher<K, R: Decodable>(for endpoint: Endpoint<K>,
-                                  using requestData: K.RequestData) -> AnyPublisher<R, NetworkError>
+                                  using requestData: K.RequestData,
+                                  decoder: JSONDecoder) -> AnyPublisher<R, NetworkError>
 
   @discardableResult
   func dataTask<K>(for endpoint: Endpoint<K>,
                    using requestData: K.RequestData,
+                   decoder: JSONDecoder,
                    completion: @escaping ((Result<Data, NetworkError>) -> Void)) -> URLSessionDataTask?
 
   @discardableResult
   func request<K, R: Decodable>(for endpoint: Endpoint<K>,
                                 using requestData: K.RequestData,
+                                decoder: JSONDecoder,
                                 completion: @escaping (Result<R, NetworkError>) -> Void) -> URLSessionDataTask?
   @discardableResult
   func accepts(statusCodes: [Int]) -> Self
@@ -61,17 +62,14 @@ public protocol NetworkRequestable: AnyObject {
 // MARK: - Service
 
 public class NetworkService {
-  public private(set) var decoder = JSONDecoder()
   private let urlSession: URLSession
   private let host: String
   private var acceptedStatusCodes: [Int] = Array(200..<300)
 
   public init(host: String,
-              urlSession: URLSession = URLSession.shared,
-              decoder: JSONDecoder = .init()) {
+              urlSession: URLSession = URLSession.shared) {
     self.host = host
     self.urlSession = urlSession
-    self.decoder = decoder
   }
 }
 
@@ -85,12 +83,13 @@ extension NetworkService: NetworkRequestable {
   @discardableResult
   public func request<K, R: Decodable>(for endpoint: Endpoint<K>,
                                        using requestData: K.RequestData,
+                                       decoder: JSONDecoder = .init(),
                                        completion: @escaping (Result<R, NetworkError>) -> Void) -> URLSessionDataTask? {
     return dataTask(for: endpoint, using: requestData) { (result) in
       switch result {
       case let .success(data):
         do {
-          let object = try self.decoder.decode(R.self, from: data)
+          let object = try decoder.decode(R.self, from: data)
           completion(.success(object))
         } catch {
           completion(.failure(.parse(error)))
@@ -104,6 +103,7 @@ extension NetworkService: NetworkRequestable {
   @discardableResult
   public func dataTask<K>(for endpoint: Endpoint<K>,
                           using requestData: K.RequestData,
+                          decoder: JSONDecoder = .init(),
                           completion: @escaping ((Result<Data, NetworkError>) -> Void)) -> URLSessionDataTask? {
     guard let request = endpoint.makeRequest(host: host, with: requestData) else {
       completion(.failure(.invalidEndpointError))
@@ -143,7 +143,8 @@ extension NetworkService: NetworkRequestable {
 
   @available(iOS 13.0, *)
   public func publisher<K, R: Decodable>(for endpoint: Endpoint<K>,
-                                         using requestData: K.RequestData) -> AnyPublisher<R, NetworkError> {
+                                         using requestData: K.RequestData,
+                                         decoder: JSONDecoder = .init()) -> AnyPublisher<R, NetworkError> {
     guard let request = endpoint.makeRequest(host: host, with: requestData) else {
       return Fail(error: NetworkError.invalidEndpointError).eraseToAnyPublisher()
     }

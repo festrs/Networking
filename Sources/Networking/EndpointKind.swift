@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Mocker
 
 public protocol EndpointKind {
   associatedtype RequestData
