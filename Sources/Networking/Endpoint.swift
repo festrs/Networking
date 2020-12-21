@@ -21,6 +21,16 @@ public struct Endpoint<Kind: EndpointKind> {
     case patch = "PATCH"
     case delete = "DELETE"
   }
+
+  public init(path: String,
+              method: Endpoint<Kind>.Method = .get,
+              queryItems: [URLQueryItem] = [URLQueryItem](),
+              bodyParameters: [String : Any] = [String: Any]()) {
+    self.path = path
+    self.method = method
+    self.queryItems = queryItems
+    self.bodyParameters = bodyParameters
+  }
 }
 
 extension Endpoint {
